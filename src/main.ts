@@ -1,8 +1,8 @@
-import { SocketServer } from './lib/server';
+import { Kocket } from './lib/server';
 
-export { SocketServer } from './lib/server';
+export { Kocket } from './lib/server';
 
-const server = new SocketServer();
+const server = new Kocket();
 server
   .use(async (ctx, n) => {
     const json = ctx.getJson();

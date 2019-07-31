@@ -20,7 +20,7 @@ export type SocketEventMap = {
 
 export type Middleware = (ctx: Context, n: EmptyAsyncFunction | EmptyFunction) => void;
 
-export class SocketServer {
+export class Kocket {
   public raw = net.createServer();
   private _middlewares: Middleware[] = [];
   private _clients: Set<Context> = new Set();
