@@ -17,3 +17,6 @@ server
   })
   .listen(7001);
 ```
+
+# Note
+every connection uses **only one** context instance until closed.
