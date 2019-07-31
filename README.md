@@ -24,4 +24,4 @@ server
 ```
 
 # Note
-every connection uses **only one** context instance until closed.
+Every connection uses **only one** context instance until closed.
