@@ -12,6 +12,11 @@ server
         msg: `I know.`,
         name: 'server',
       });
+      server.broadcast({
+        type: 'broadcast',
+        from: json.name,
+        msg: json.msg,
+      });
     }
     await n();
   })
