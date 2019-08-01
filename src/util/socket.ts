@@ -8,8 +8,8 @@ export type Request = {
 
 export type RequestGeneral = {
   method: string;
+  url: string;
   protocol: string;
-  version: string;
   raw: string;
 };
 
@@ -47,8 +47,8 @@ export async function resolveRequest(socket: net.Socket) {
   const request: Partial<Request> = {
     headers: {},
   };
-  const [method, protocol, version] = general.split('/').map(keyVal => keyVal.trim());
-  request.general = { method, protocol, version, raw: general };
+  const [method, url, protocol] = general.split(' ').map(keyVal => keyVal.trim());
+  request.general = { method, url, protocol, raw: general };
   for (const header of headers) {
     const [key, value] = header.split(':').map(keyOrVal => keyOrVal.trim());
     request.headers![key] = value || '';

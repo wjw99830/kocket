@@ -1,11 +1,20 @@
 {
   "name": "node-socket",
   "version": "0.0.1",
-  "main": "src/main.js",
+  "main": "dist/main.js",
   "license": "MIT",
+  "scripts": {
+    "compile": "rollup -c -w",
+    "dev": "nodemon dist/main",
+    "build": "rollup -c"
+  },
   "devDependencies": {
     "@types/node": "^12.6.8",
     "nodemon": "^1.19.1",
+    "rollup": "^1.17.0",
+    "rollup-plugin-commonjs": "^10.0.1",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-typescript2": "^0.22.1",
     "typescript": "^3.5.3"
   }
 }

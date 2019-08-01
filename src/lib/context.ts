@@ -1,13 +1,26 @@
-import { SocketMessage } from "../util/socket";
+import { SocketMessage, Request } from "../util/socket";
 import net from 'net';
 import stream from 'stream';
 import { Data } from "./server";
 
-export class Context {
-  public userData: any;
-  public clientName?: string;
+type Query = Record<string, string | void>;
 
-  constructor(public client: net.Socket, public message?: SocketMessage) {}
+export class Context {
+  public url!: string;
+  public path!: string;
+  public querystring!: string;
+  public query!: Query;
+  public userData: any;
+  public name?: string;
+  public message?: SocketMessage;
+
+  constructor(public client: net.Socket, meta: Request) {
+    this.url = meta.general.url;
+    const [path, querystring] = this.url.split('?');
+    this.path = path;
+    this.querystring = querystring;
+    this.query = resolveQuery(querystring);
+  }
   
   public getText(encoding?: string) {
     return this.message ? this.message.data.toString(encoding) : null;
@@ -23,8 +36,8 @@ export class Context {
     return json;
   }
 
-  public name(name: string) {
-    this.clientName = name;
+  public setName(name: string) {
+    this.name = name;
     return this;
   }
 
@@ -87,4 +100,13 @@ function resolveMessageHeader(buffer: Buffer, opcode = '0001') {
     }
   }
   return buf;
+}
+function resolveQuery(querystring: string) {
+  const query: Query = {};
+  const pairs = querystring.split('&');
+  for (const pair of pairs) {
+    const [key, value] = pair.split('=');
+    query[key] = value;
+  }
+  return query;
 }

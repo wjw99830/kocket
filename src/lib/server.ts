@@ -1,9 +1,11 @@
 import net from 'net';
-import { resolveRequest, isWebsocketUpgrade, generateWebsocketAccept, decodePayload, SocketMessageTypeMap, pong, stringifyHeaders } from '../util/socket';
+import { resolveRequest, isWebsocketUpgrade, generateWebsocketAccept, decodePayload, SocketMessageTypeMap, pong, stringifyHeaders, Request } from '../util/socket';
 import { toHex } from '../util/buffer';
-import { EmptyFunction, EmptyAsyncFunction, noop } from '../util';
+import { EmptyFunction, EmptyAsyncFunction, asyncNoop, AnyFunction } from '../util';
 import { Context } from './context';
 import stream from 'stream';
+import { EventEmitter } from 'events';
+import { AsyncError } from './async-error';
 
 export type Data = Buffer | stream.Readable | object | string;
 export type SocketEventNames = 'close' | 'connect' | 'data' | 'drain' | 'end' | 'error' | 'lookup' | 'timeout';
@@ -18,29 +20,38 @@ export type SocketEventMap = {
   timeout: () => void;
 };
 
-export type Middleware = (ctx: Context, n: EmptyAsyncFunction | EmptyFunction) => void;
+export type Middleware = (ctx: Context, n: EmptyAsyncFunction | EmptyFunction) => Promise<void>;
 
-export class Kocket {
+export class Kocket extends EventEmitter {
   public raw = net.createServer();
   private _middlewares: Middleware[] = [];
   private _clients: Set<Context> = new Set();
 
   constructor() {
+    super();
     this._connect(this.raw);
     this.on('error', console.error);
   }
   
   public broadcast(data: Data) {
     for (const client of this._clients) {
-      client.send(data);
+      try {
+        client.send(data);
+      } catch (error) {
+        this.emit('error', error);
+      }
     }
     return this;
   }
 
-  public to(clientName: string, data: Data) {
+  public to(name: string, data: Data) {
     for (const client of this._clients) {
-      if (client.clientName === clientName) {
-        client.send(data);
+      if (client.name === name) {
+        try {
+          client.send(data);
+        } catch (error) {
+          this.emit('error', error);
+        }
       }
     }
     return this;
@@ -51,7 +62,8 @@ export class Kocket {
     return this;
   }
 
-  public on<T extends SocketEventNames>(event: T, handler: SocketEventMap[T]) {
+  public on(event: string, handler: AnyFunction) {
+    super.on(event, handler);
     this.raw.on(event, handler);
     return this;
   }
@@ -71,20 +83,19 @@ export class Kocket {
           Connection: 'Upgrade',
           'Sec-WebSocket-Accept': generateWebsocketAccept(request.headers['Sec-WebSocket-Key'] || ''),
         };
-        const response = `${request.general.protocol}/${request.general.version} 101 Switching Protocols\r\n` + stringifyHeaders(handshake);
+        const response = `${request.general.protocol} 101 Switching Protocols\r\n` + stringifyHeaders(handshake);
         client.write(response);
-        this._proxy(client);
+        this._proxy(client, request);
       } else {
         client.end();
       }
     });
   }
 
-  private _proxy(client: net.Socket) {
+  private _proxy(client: net.Socket, meta: Request) {
     let payload: Buffer = Buffer.alloc(0);
-    const ctx = new Context(client);
+    const ctx = new Context(client, meta);
     this._clients.add(ctx);
-    client.on('error', console.error);
     client.on('close', () => {
       this._clients.delete(ctx);
     });
@@ -140,13 +151,16 @@ export class Kocket {
     const l = this._middlewares.length;
     for (let i = 0; i < l; i++) {
       const next = async () => {
-        const nextMiddleware = this._middlewares[i + 1] || noop;
+        const nextMiddleware = this._middlewares[i + 1] || asyncNoop;
         await nextMiddleware(ctx, nextFns[i + 1]);
       };
       nextFns.push(next);
     }
-    const head = this._middlewares[0] || noop;
-    head(ctx, nextFns[0] || noop);
+    const head = this._middlewares[0] || asyncNoop;
+    head(ctx, nextFns[0] || asyncNoop).catch(e => {
+      this.emit('async_error', new AsyncError(e));
+      this.emit('error', new AsyncError(e));
+    });;
   }
 
 }
