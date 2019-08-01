@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "compile": "rollup -c -w",
-    "dev": "nodemon dist/main",
+    "dev": "nodemon example/app",
     "build": "rollup -c"
   },
   "devDependencies": {
